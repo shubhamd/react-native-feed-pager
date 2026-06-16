@@ -114,6 +114,23 @@ function CarouselCell({ item, isActive, shouldPreload, height }) {
 
 ---
 
+## Opening at an index (the blank-on-open bug it kills)
+
+When you open the pager deep-linked to a non-zero `initialIndex` (e.g. the user tapped tile #64 in a
+grid), there's a second intermittent bug to defeat. Legend List's `initialScrollIndex` seeds its
+internal scroll *model* — so its virtualized containers are placed around `initialIndex` — but on
+Android the underlying native `ScrollView`'s `contentOffset` intermittently **stays at 0**. The opened
+cell is rendered, just positioned far below where the native scroll is parked, so the viewport shows a
+**blank screen** until a stray gesture re-syncs the two. The same model↔native divergence also makes
+viewability briefly report the *top* items, which can hijack the active cell.
+
+The model-level imperative API can't fix it: `scrollToIndex` / `scrollToOffset` see the model already
+*at* the target and no-op. `FeedPager` fixes it structurally — on Legend List's `onLoad` (after the
+initial layout, once content size is established) it drives the **native** `ScrollView` directly via
+`getNativeScrollRef().scrollTo({ y: initialIndex * height })`, re-asserting once on the next frame to
+beat any content-sizing race. `animated:false` ⇒ the pager simply appears already at the opened item,
+no flash, no jump. You get correct open-at-index for free; nothing to wire up.
+
 ## How the preload window works
 
 `usePreloadWindow(ahead, behind)` (used internally, and exported if you want it standalone) tracks the

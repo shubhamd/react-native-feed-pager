@@ -1,5 +1,5 @@
-import { LegendList } from '@legendapp/list';
-import { useCallback, useMemo, useState, type ReactElement } from 'react';
+import { LegendList, type LegendListRef } from '@legendapp/list';
+import { useCallback, useMemo, useRef, useState, type ReactElement } from 'react';
 import { Dimensions, type LayoutChangeEvent, StyleSheet, View, type ViewToken } from 'react-native';
 
 import type { FeedPagerProps } from './types';
@@ -57,11 +57,42 @@ export function FeedPager<T>(props: FeedPagerProps<T>): ReactElement {
   const vh = itemHeight ?? measured ?? WINDOW_HEIGHT;
   const ready = itemHeight != null || measured != null;
 
+  const listRef = useRef<LegendListRef>(null);
+  const didSyncInitial = useRef(false);
+
   const { activeIndex, setActiveFromViewable, shouldPreload } = usePreloadWindow(
     preloadAhead,
     preloadBehind,
     initialIndex,
   );
+
+  // Force the NATIVE scroll position to the opened index once the list has laid out.
+  //
+  // `initialScrollIndex` alone is unreliable on Android: it seeds Legend List's internal scroll *model*
+  // (so its virtualized containers sit around `initialIndex`), but the underlying ScrollView's native
+  // contentOffset intermittently stays at 0. The result is a blank viewport — the cell IS rendered, just
+  // positioned far below where the native scroll is parked — until a user gesture re-syncs the two. (The
+  // same divergence also makes viewability briefly report the top items, hijacking the active cell.)
+  //
+  // The model-level imperative API can't fix this: `scrollToIndex` / `scrollToOffset` see the model
+  // already AT the target and no-op. So we drive the underlying ScrollView directly via
+  // `getNativeScrollRef().scrollTo`, which moves the real native contentOffset regardless of the model.
+  // `onLoad` fires after the initial layout (content size is established by then), and a second pass on
+  // the next frame guards the rare case where the first call races content sizing. animated:false ⇒ no
+  // visible jump — the pager simply appears already at the opened item.
+  const onLoad = useCallback(() => {
+    if (didSyncInitial.current || initialIndex <= 0) return;
+    didSyncInitial.current = true;
+    const target = initialIndex * vh;
+    const sync = () => {
+      const nativeRef = listRef.current?.getNativeScrollRef?.() as
+        | { scrollTo?: (o: { x?: number; y?: number; animated?: boolean }) => void }
+        | undefined;
+      nativeRef?.scrollTo?.({ y: target, animated: false });
+    };
+    sync();
+    requestAnimationFrame(sync);
+  }, [initialIndex, vh]);
 
   const viewabilityConfig = useMemo(
     () => ({ itemVisiblePercentThreshold: viewabilityThreshold }),
@@ -88,25 +119,39 @@ export function FeedPager<T>(props: FeedPagerProps<T>): ReactElement {
     [renderItem, activeIndex, shouldPreload, vh],
   );
 
+  // Marker that tells Legend List when to re-render its (otherwise memoized) cells. It must change on an
+  // active-cell change (so isActive/shouldPreload propagate) AND whenever the consumer's `renderItem`
+  // identity changes — i.e. when state it closes over (mute, optimistic save, …) updates. Keying only on
+  // activeIndex would leave those cells stale: tapping mute would flip the parent's state but never
+  // re-render the visible cell, so the icon (and the player) wouldn't update. `renderItem` is a stable
+  // useCallback, so this only changes when it genuinely should.
+  const listExtraData = useMemo(() => ({ activeIndex, renderItem }), [activeIndex, renderItem]);
+
   const getFixedItemSize = useCallback(() => vh, [vh]);
   const drawDistance = useMemo(() => vh * drawDistanceMultiplier, [vh, drawDistanceMultiplier]);
-  // Pre-allocate enough cell containers to cover the viewport + drawDistance buffer on both sides.
-  // With full-screen items, Legend List's default pool ratio (2) is too small, so it creates a
-  // container on demand mid-scroll (the "No unused container available" warning + a scroll hitch).
+  // Pre-allocate enough cell containers to cover the viewport + drawDistance buffer on BOTH sides
+  // (≈ 1 + 2*drawDistanceMultiplier full-screen cells). With full-screen items, Legend List's default
+  // pool ratio (2) is too small, so it creates a container on demand mid-scroll — the
+  // "No unused container available" warning + a scroll hitch. Sizing the pool to the buffer avoids it.
   const containerPoolRatio = useMemo(() => drawDistanceMultiplier * 2 + 2, [drawDistanceMultiplier]);
 
   return (
     <View style={styles.root} onLayout={onLayout} testID={testID}>
       {ready ? (
         <LegendList
+          ref={listRef}
           data={data as T[]}
           keyExtractor={keyExtractor}
           renderItem={internalRenderItem}
-          // Force a re-render of mounted cells when the active cell changes so isActive/shouldPreload
-          // propagate (cells are otherwise memoized by data identity).
-          extraData={activeIndex}
+          // Force a re-render of mounted cells when the active cell changes (isActive/shouldPreload) OR
+          // the consumer's renderItem changes (mute / optimistic save). See listExtraData above.
+          extraData={listExtraData}
           getItemType={getItemType}
           initialScrollIndex={initialIndex}
+          // Don't paint until the initial layout (and the onLoad native-scroll sync below) is done, so the
+          // viewport never flashes the pre-sync blank frame.
+          waitForInitialLayout
+          onLoad={onLoad}
           // Deterministic fixed-size layout — the crux of the correctness + perf story.
           estimatedItemSize={vh}
           getFixedItemSize={getFixedItemSize}
