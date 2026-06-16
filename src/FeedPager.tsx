@@ -57,7 +57,11 @@ export function FeedPager<T>(props: FeedPagerProps<T>): ReactElement {
   const vh = itemHeight ?? measured ?? WINDOW_HEIGHT;
   const ready = itemHeight != null || measured != null;
 
-  const { activeIndex, setActiveFromViewable, shouldPreload } = usePreloadWindow(preloadAhead, preloadBehind);
+  const { activeIndex, setActiveFromViewable, shouldPreload } = usePreloadWindow(
+    preloadAhead,
+    preloadBehind,
+    initialIndex,
+  );
 
   const viewabilityConfig = useMemo(
     () => ({ itemVisiblePercentThreshold: viewabilityThreshold }),

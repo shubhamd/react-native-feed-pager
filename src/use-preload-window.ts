@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 
 export interface PreloadWindow {
-  /** The currently centered cell index (-1 until known). */
+  /** The currently centered cell index (seeded with initialIndex until the first viewability change). */
   activeIndex: number;
   /** Last scroll direction. */
   direction: 'up' | 'down';
@@ -21,10 +21,13 @@ export interface PreloadWindow {
  * Mirrors the windows used by muxinc/Slop-Social and TheWidlarzGroup/react-native-video-feed
  * (≈5 ahead / 1 behind).
  */
-export function usePreloadWindow(ahead: number, behind: number): PreloadWindow {
-  const [activeIndex, setActiveIndex] = useState(-1);
+export function usePreloadWindow(ahead: number, behind: number, initialIndex = 0): PreloadWindow {
+  // Seed with initialIndex so the cell the pager OPENS at (e.g. the tapped grid tile) is immediately
+  // active + in-window — otherwise it renders as a placeholder until the first viewability callback
+  // fires, showing a blank screen on open at a non-zero index.
+  const [activeIndex, setActiveIndex] = useState(initialIndex);
   // Refs so `shouldPreload` reads fresh values without being recreated every render.
-  const activeRef = useRef(-1);
+  const activeRef = useRef(initialIndex);
   const dirRef = useRef<'up' | 'down'>('down');
   const [direction, setDirection] = useState<'up' | 'down'>('down');
 
@@ -46,7 +49,6 @@ export function usePreloadWindow(ahead: number, behind: number): PreloadWindow {
   const shouldPreload = useCallback(
     (index: number) => {
       const active = activeRef.current;
-      if (active < 0) return index === 0; // before first viewability, warm the opening cell
       if (index === active) return true;
       const dist = index - active;
       const isAhead = dirRef.current === 'down' ? dist > 0 : dist < 0;
