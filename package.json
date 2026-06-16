@@ -1,0 +1,50 @@
+{
+  "name": "react-native-feed-pager",
+  "version": "0.1.0",
+  "description": "A high-performance, full-screen vertical feed pager (TikTok / Reels / Stories style) for React Native that works with ANY media — video, images, carousels — not just video. Built on Legend List with deterministic fixed-size layout, an asymmetric direction-aware preload window, and active-cell playback gating.",
+  "main": "src/index.ts",
+  "module": "src/index.ts",
+  "types": "src/index.ts",
+  "react-native": "src/index.ts",
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "react-native",
+    "expo",
+    "feed",
+    "tiktok",
+    "reels",
+    "stories",
+    "vertical-feed",
+    "video-feed",
+    "pager",
+    "carousel",
+    "legend-list",
+    "snap",
+    "preload",
+    "new-architecture",
+    "fabric"
+  ],
+  "license": "MIT",
+  "peerDependencies": {
+    "@legendapp/list": ">=2.0.0",
+    "react": ">=18.0.0",
+    "react-native": ">=0.76.0"
+  },
+  "devDependencies": {
+    "@legendapp/list": "^2.0.19",
+    "@types/react": "^18.0.0",
+    "react": "^18.0.0",
+    "react-native": "^0.76.0",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
