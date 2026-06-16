@@ -126,6 +126,31 @@ Defaults (5 ahead / 1 behind) match the windows in `Slop-Social` (Mux) and `reac
 
 ---
 
+## Optional media helpers
+
+The core pager is media-agnostic. If you want the *loading* patterns that make a mixed feed feel
+instant without re-deriving them, import from the optional `react-native-feed-pager/media` entry
+(needs the optional peer deps `expo-image` + `expo-video`):
+
+```tsx
+import { PosterVideo, prefetchPosters } from 'react-native-feed-pager/media';
+
+// In a carousel cell: warm every frame's poster when the cell enters the preload window.
+useEffect(() => { if (shouldPreload) prefetchPosters(item.frames.map((f) => f.posterUrl)); }, [shouldPreload]);
+
+// A video that never flashes black and never blips on swap: the poster stays painted underneath and
+// the VideoView fades in only once readyToPlay. Mount it for active+preload cells.
+<PosterVideo source={item.url} poster={item.posterUrl} active={isActive} preload={shouldPreload} muted={muted} />
+```
+
+- **`prefetchPosters(uris)`** — warms image/poster URLs into the memory+disk cache (kills the
+  decode-from-scratch black flash). Call it for in-window cells (e.g. all carousel frames).
+- **`PosterVideo`** — keeps the poster `<Image>` always mounted and fades the video in over it at
+  `readyToPlay`. Because the poster never unmounts, the poster→video transition has no gap to flicker
+  through — no black flash, no swap blip.
+
+These are *optional*; if you only use `FeedPager` you don't pull in `expo-video`/`expo-image`.
+
 ## Props
 
 | Prop | Default | Description |

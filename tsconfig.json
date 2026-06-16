@@ -14,5 +14,6 @@
     "declaration": true,
     "noEmit": true
   },
-  "include": ["src"]
+  "//": "media.tsx is an OPTIONAL module gated behind optional peer deps (expo-image/expo-video/expo); it's excluded from the core typecheck (validated in the consuming app instead) so the core stays dependency-light.",
+  "include": ["src/index.ts", "src/FeedPager.tsx", "src/use-preload-window.ts", "src/types.ts"]
 }

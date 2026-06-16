@@ -31,7 +31,7 @@ export type FeedItemType = string;
 
 export interface FeedPagerProps<T> {
   /** The feed data. Appending to it (infinite scroll) is safe — cells keep their identity. */
-  data: ReadonlyArray<T>;
+  data: readonly T[];
 
   /** Stable unique key per item. Stability is REQUIRED for correct cell identity. */
   keyExtractor: (item: T, index: number) => string;

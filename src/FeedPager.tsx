@@ -86,6 +86,10 @@ export function FeedPager<T>(props: FeedPagerProps<T>): ReactElement {
 
   const getFixedItemSize = useCallback(() => vh, [vh]);
   const drawDistance = useMemo(() => vh * drawDistanceMultiplier, [vh, drawDistanceMultiplier]);
+  // Pre-allocate enough cell containers to cover the viewport + drawDistance buffer on both sides.
+  // With full-screen items, Legend List's default pool ratio (2) is too small, so it creates a
+  // container on demand mid-scroll (the "No unused container available" warning + a scroll hitch).
+  const containerPoolRatio = useMemo(() => drawDistanceMultiplier * 2 + 2, [drawDistanceMultiplier]);
 
   return (
     <View style={styles.root} onLayout={onLayout} testID={testID}>
@@ -102,6 +106,7 @@ export function FeedPager<T>(props: FeedPagerProps<T>): ReactElement {
           // Deterministic fixed-size layout — the crux of the correctness + perf story.
           estimatedItemSize={vh}
           getFixedItemSize={getFixedItemSize}
+          initialContainerPoolRatio={containerPoolRatio}
           // One full item per swipe: snap to the cell grid; disableIntervalMomentum prevents flinging
           // past a single item; decelerationRate:fast tightens the settle.
           pagingEnabled
